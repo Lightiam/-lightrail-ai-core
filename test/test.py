@@ -25,16 +25,22 @@ async def test_project(dut):
 
     dut._log.info("Test project behavior")
 
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
+    # Test the MAC (Multiply-Accumulate) Core
+    # Weight = 3 (0b0011), Input = 2 (0b0010) => ui_in = 0x32
+    dut.ui_in.value = 0x32
+    dut.uio_in.value = 0
 
-    # Wait for one clock cycle to see the output values
+    # Wait for one clock cycle to calculate and accumulate
     await ClockCycles(dut.clk, 1)
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+    # 3 * 2 = 6. Accumulator starts at 0, so 0 + 6 = 6
+    assert dut.uo_out.value == 6
+    
+    # Wait for another clock cycle
+    await ClockCycles(dut.clk, 1)
+    
+    # Accumulator should now be 6 + 6 = 12
+    assert dut.uo_out.value == 12
 
     # Keep testing the module by changing the input values, waiting for
     # one or more clock cycles, and asserting the expected output values.

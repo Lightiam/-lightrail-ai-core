@@ -22,24 +22,24 @@ project:
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
   # Inputs
-  ui[0]: ""
-  ui[1]: ""
-  ui[2]: ""
-  ui[3]: ""
-  ui[4]: ""
-  ui[5]: ""
-  ui[6]: ""
-  ui[7]: ""
+  ui[0]: "input_bit_0"
+  ui[1]: "input_bit_1"
+  ui[2]: "input_bit_2"
+  ui[3]: "input_bit_3"
+  ui[4]: "weight_bit_0"
+  ui[5]: "weight_bit_1"
+  ui[6]: "weight_bit_2"
+  ui[7]: "weight_bit_3"
 
   # Outputs
-  uo[0]: ""
-  uo[1]: ""
-  uo[2]: ""
-  uo[3]: ""
-  uo[4]: ""
-  uo[5]: ""
-  uo[6]: ""
-  uo[7]: ""
+  uo[0]: "acc_0"
+  uo[1]: "acc_1"
+  uo[2]: "acc_2"
+  uo[3]: "acc_3"
+  uo[4]: "acc_4"
+  uo[5]: "acc_5"
+  uo[6]: "acc_6"
+  uo[7]: "acc_7"
 
   # Bidirectional pins
   uio[0]: ""
