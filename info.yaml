@@ -1,55 +1,56 @@
 # Tiny Tapeout project information
 project:
-  title:        "LightRail AI MAC Core"      # Project title
-  author:       "LightRail Team"      # Your name
+  title:        "LightRail AI Tensor MAC Core"      # Project title
+  author:       "LightRail Team"                     # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "A miniaturized Tensor Core MAC unit for AI acceleration"      # One line description of what your project does
-  language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
-  clock_hz:     50000000       # Clock frequency in Hz (or 0 if not applicable)
+  description:  "SIMD dual-lane 4-bit tensor MAC core for AI dot-product acceleration. Two parallel MAC lanes accumulate weight*activation products every clock cycle; dot product of a 2N-element vector computed in N cycles."
+  language:     "Verilog"
+  clock_hz:     50000000       # 50 MHz
 
   # How many tiles your design occupies? A single tile is about 167x108 uM.
-  tiles: "1x1"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2 or 8x2
+  tiles: "1x1"          # Both 4x4 multipliers + 2x 8-bit accumulators fit comfortably
 
-  # Your top module name must start with "tt_um_". Make it unique by including your github username:
+  # Your top module name must start with "tt_um_".
   top_module:  "tt_um_lightrail_ai_core"
 
   # List your project's source files here.
-  # Source files must be in ./src and you must list each source file separately, one per line.
-  # Don't forget to also update `PROJECT_SOURCES` in test/Makefile.
   source_files:
     - "project.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
-  # Inputs
-  ui[0]: "input_bit_0"
-  ui[1]: "input_bit_1"
-  ui[2]: "input_bit_2"
-  ui[3]: "input_bit_3"
-  ui[4]: "weight_bit_0"
-  ui[5]: "weight_bit_1"
-  ui[6]: "weight_bit_2"
-  ui[7]: "weight_bit_3"
+  # Inputs — Lane A (dedicated input pins)
+  ui[0]: "input_a_bit0"    # Lane A activation, bit 0
+  ui[1]: "input_a_bit1"    # Lane A activation, bit 1
+  ui[2]: "input_a_bit2"    # Lane A activation, bit 2
+  ui[3]: "input_a_bit3"    # Lane A activation, bit 3
+  ui[4]: "weight_a_bit0"   # Lane A weight, bit 0
+  ui[5]: "weight_a_bit1"   # Lane A weight, bit 1
+  ui[6]: "weight_a_bit2"   # Lane A weight, bit 2
+  ui[7]: "weight_a_bit3"   # Lane A weight, bit 3
 
-  # Outputs
-  uo[0]: "acc_0"
-  uo[1]: "acc_1"
-  uo[2]: "acc_2"
-  uo[3]: "acc_3"
-  uo[4]: "acc_4"
-  uo[5]: "acc_5"
-  uo[6]: "acc_6"
-  uo[7]: "acc_7"
+  # Outputs — Lane A accumulator
+  uo[0]: "acc_a_bit0"      # Lane A accumulator, bit 0 (LSB)
+  uo[1]: "acc_a_bit1"
+  uo[2]: "acc_a_bit2"
+  uo[3]: "acc_a_bit3"
+  uo[4]: "acc_a_bit4"
+  uo[5]: "acc_a_bit5"
+  uo[6]: "acc_a_bit6"
+  uo[7]: "acc_a_bit7"      # Lane A accumulator, bit 7 (MSB)
 
-  # Bidirectional pins
-  uio[0]: ""
-  uio[1]: ""
-  uio[2]: ""
-  uio[3]: ""
-  uio[4]: ""
-  uio[5]: ""
-  uio[6]: ""
-  uio[7]: ""
+  # Bidirectional pins — Lane B input (in) / Lane B accumulator (out)
+  # uio_oe = 0xFF: all configured as outputs carrying acc_b
+  # During normal operation: driven as outputs (acc_b[7:0])
+  # Input path (uio_in) feeds weight_b[7:4] and input_b[3:0] to Lane B MAC
+  uio[0]: "input_b_bit0 / acc_b_bit0"   # Lane B activation bit 0 in; acc_b bit 0 out
+  uio[1]: "input_b_bit1 / acc_b_bit1"
+  uio[2]: "input_b_bit2 / acc_b_bit2"
+  uio[3]: "input_b_bit3 / acc_b_bit3"   # Lane B activation bit 3 in; acc_b bit 3 out
+  uio[4]: "weight_b_bit0 / acc_b_bit4"  # Lane B weight bit 0 in; acc_b bit 4 out
+  uio[5]: "weight_b_bit1 / acc_b_bit5"
+  uio[6]: "weight_b_bit2 / acc_b_bit6"
+  uio[7]: "weight_b_bit3 / acc_b_bit7"  # Lane B weight bit 3 in; acc_b bit 7 out
 
 # Do not change!
 yaml_version: 6
