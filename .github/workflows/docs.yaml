@@ -7,6 +7,7 @@ on:
 jobs:
   docs:
     runs-on: ubuntu-latest
+    continue-on-error: true   # requires GitHub Pages to be enabled in repo settings
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

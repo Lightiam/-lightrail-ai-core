@@ -40,8 +40,11 @@ jobs:
   viewer:
     needs: gds
     runs-on: ubuntu-latest
+    continue-on-error: true   # requires GitHub Pages to be enabled in repo settings
     permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
     steps:
       - uses: TinyTapeout/tt-gds-action/viewer@tt08
