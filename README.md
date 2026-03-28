@@ -1,27 +1,44 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 
-# Tiny Tapeout Verilog Project Template
+# LightRail AI Gen3 – LR-P8A Photonic Inference Core
 
-- [Read the documentation for project](docs/info.md)
+A Tiny Tapeout ASIC tile that forms the digital post-processor of the
+**LightRail AI Gen3 LR-P8A** photonic accelerator PCIe card.
+
+- [Read the full project datasheet](docs/info.md)
+
+## What it does
+
+Photonic AI accelerators perform matrix-vector multiplication at the speed of
+light using Mach-Zehnder Interferometer (MZI) meshes.  After the optical
+computation, photodetectors convert results back to electrical signals and an
+ADC digitises them.  This chip receives those 4-bit ADC readings and:
+
+1. **Multiplies** each reading by a signed 4-bit MZI weight (−8 to +7).
+2. **Accumulates** the product into one of four independent 8-bit signed
+   channels (A, B, C, D) — mirroring the four fiber-optic input bundles on
+   the LR-P8A card.
+3. **Saturates** at ±127/−128 instead of wrapping, matching the bounded
+   optical power of a real photonic system.
+4. **Applies ReLU** (`max(0, acc)`) on demand for neural-network activation.
+
+## Pin summary
+
+| Pins | Signal | Description |
+|---|---|---|
+| `ui[3:0]` | `adc_in` | Photodetector ADC result (unsigned 0–15) |
+| `ui[7:4]` | `weight` | MZI weight (signed −8…+7, 2's-complement) |
+| `uio[1:0]` | `ch_sel` | Channel select: 0=A 1=B 2=C 3=D |
+| `uio[2]` | `relu_en` | 1 = apply ReLU to output |
+| `uio[3]` | `ch_clear` | 1 = zero selected channel this cycle |
+| `uo[7:0]` | `ch_out` | Selected accumulator (post-ReLU if enabled) |
+| `uio[7:4]` | `neg_d…neg_a` | Sign flags – high when channel is negative |
 
 ## What is Tiny Tapeout?
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
-
-To learn more and get started, visit https://tinytapeout.com.
-
-## Set up your Verilog project
-
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
-
-The GitHub action will automatically build the ASIC files using [OpenLane](https://www.zerotoasiccourse.com/terminology/openlane/).
-
-## Enable GitHub actions to build the results page
-
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
+Tiny Tapeout is an educational project that makes it easier and cheaper than
+ever to get your digital designs manufactured on a real chip.
+Visit https://tinytapeout.com to learn more.
 
 ## Resources
 
@@ -30,12 +47,3 @@ The GitHub action will automatically build the ASIC files using [OpenLane](https
 - [Learn how semiconductors work](https://tinytapeout.com/siliwiz/)
 - [Join the community](https://tinytapeout.com/discord)
 - [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
-
-## What next?
-
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
