@@ -83,14 +83,8 @@ module tt_um_lightrail_ai_core (
     assign uo_out  = relu_en ? (raw[7] ? 8'h00 : raw) : raw;
 
     // ── Status flags ────────────────────────────────────────────────────────
-    // Saturation: accumulator is at a clamped extreme
-    wire sat_a = (acc[0] == 8'h7F) | (acc[0] == 8'h80);
-    wire sat_b = (acc[1] == 8'h7F) | (acc[1] == 8'h80);
-    wire sat_c = (acc[2] == 8'h7F) | (acc[2] == 8'h80);
-    wire sat_d = (acc[3] == 8'h7F) | (acc[3] == 8'h80);
-
-    assign uio_out = {acc[3][7], acc[2][7], acc[1][7], acc[0][7],
-                      sat_d, sat_c, sat_b, sat_a};
+    // Sign flags on upper 4 bits, lower 4 bits zeroed out (input controls)
+    assign uio_out = {acc[3][7], acc[2][7], acc[1][7], acc[0][7], 4'b0000};
     assign uio_oe  = 8'hF0;   // upper 4 are outputs (neg_a..d), lower 4 are inputs (controls)
 
 endmodule
