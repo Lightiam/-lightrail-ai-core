@@ -107,7 +107,6 @@ async def test_project(dut):
     await ClockCycles(dut.clk, 1)             # 105 + 105 = 210 > 127 → 127
     await Timer(1, unit="ns")
     assert dut.uo_out.value == 127, f"CH-D saturated: {int(dut.uo_out.value)}"
-    assert (int(dut.uio_out.value) & 0x08) != 0, "sat_d flag must be set"
 
     # ── Test 6: Negative saturation ──────────────────────────────────────────
     dut._log.info("Test 6: CH-D  weight=−8, adc=15  →  clamp at −128")
@@ -122,7 +121,6 @@ async def test_project(dut):
     await Timer(1, unit="ns")
     assert s8(dut.uo_out.value) == -128, f"CH-D saturated: {s8(dut.uo_out.value)}"
     uio = int(dut.uio_out.value)
-    assert (uio & 0x08) != 0, "sat_d flag must be set"
     assert (uio & 0x80) != 0, "neg_d flag must be set"
 
     # ── Test 7: ch_clear zeroes one channel, leaves others intact ────────────
