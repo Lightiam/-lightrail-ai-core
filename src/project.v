@@ -91,6 +91,6 @@ module tt_um_lightrail_ai_core (
 
     assign uio_out = {acc[3][7], acc[2][7], acc[1][7], acc[0][7],
                       sat_d, sat_c, sat_b, sat_a};
-    assign uio_oe  = 8'hFF;   // all bidir pins driven as outputs in this design
+    assign uio_oe  = 8'hF0;   // upper 4 are outputs (neg_a..d), lower 4 are inputs (controls)
 
 endmodule
