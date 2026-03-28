@@ -1,9 +1,13 @@
 # Tiny Tapeout project information
 project:
-  title:        "LightRail AI Tensor MAC Core"
+  title:        "LightRail AI Gen3 – LR-P8A Photonic Inference Core"
   author:       "LightRail Team"
   discord:      ""
-  description:  "SIMD dual-lane 4-bit tensor MAC core. Two parallel MACs accumulate weight*activation every clock. Dot product of a 2N-element vector pair in N cycles: dot = uo_out + uio_out."
+  description:  >
+    4-channel photonic AI inference post-processor. Signed MZI weights (−8 to +7)
+    multiply unsigned 4-bit photodetector ADC readings per channel (A–D), accumulate
+    into saturating 8-bit signed registers, and optionally apply ReLU activation.
+    Models the digital back-end of the LR-P8A PCIe photonic accelerator card.
   language:     "Verilog"
   clock_hz:     50000000
 
@@ -17,34 +21,35 @@ project:
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
   # Inputs
-  ui[0]: "input_a_0"
-  ui[1]: "input_a_1"
-  ui[2]: "input_a_2"
-  ui[3]: "input_a_3"
-  ui[4]: "weight_a_0"
-  ui[5]: "weight_a_1"
-  ui[6]: "weight_a_2"
-  ui[7]: "weight_a_3"
+  ui[0]: "adc_in_0"
+  ui[1]: "adc_in_1"
+  ui[2]: "adc_in_2"
+  ui[3]: "adc_in_3"
+  ui[4]: "weight_0"
+  ui[5]: "weight_1"
+  ui[6]: "weight_2"
+  ui[7]: "weight_3"
 
   # Outputs
-  uo[0]: "acc_a_0"
-  uo[1]: "acc_a_1"
-  uo[2]: "acc_a_2"
-  uo[3]: "acc_a_3"
-  uo[4]: "acc_a_4"
-  uo[5]: "acc_a_5"
-  uo[6]: "acc_a_6"
-  uo[7]: "acc_a_7"
+  uo[0]: "ch_out_0"
+  uo[1]: "ch_out_1"
+  uo[2]: "ch_out_2"
+  uo[3]: "ch_out_3"
+  uo[4]: "ch_out_4"
+  uo[5]: "ch_out_5"
+  uo[6]: "ch_out_6"
+  uo[7]: "ch_out_7"
 
-  # Bidirectional pins
-  uio[0]: "input_b_0"
-  uio[1]: "input_b_1"
-  uio[2]: "input_b_2"
-  uio[3]: "input_b_3"
-  uio[4]: "weight_b_0"
-  uio[5]: "weight_b_1"
-  uio[6]: "weight_b_2"
-  uio[7]: "weight_b_3"
+  # Bidirectional pins (uio_oe=0xFF: all driven as outputs in this design;
+  # uio_in[3:0] are sampled as control inputs regardless of oe)
+  uio[0]: "ch_sel_0"
+  uio[1]: "ch_sel_1"
+  uio[2]: "relu_en"
+  uio[3]: "ch_clear"
+  uio[4]: "neg_a"
+  uio[5]: "neg_b"
+  uio[6]: "neg_c"
+  uio[7]: "neg_d"
 
 # Do not change!
 yaml_version: 6

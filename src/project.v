@@ -1,50 +1,96 @@
 `default_nettype none
 
+// LightRail AI Gen3 – LR-P8A Photonic Inference Core
+// Tiny Tapeout 1x1 tile · Sky130 PDK
+//
+// Digital post-processor for a photonic matrix-vector accelerator.
+// Inspired by the LR-P8A PCIe card: two photonic dies connected by optical
+// waveguides, four fiber-optic input bundles feeding four independent channels.
+//
+// Each channel accumulates  weight × ADC_reading  into a saturating 8-bit
+// signed register.  Signed MZI phase coefficients (weights) allow both
+// constructive and destructive optical interference.  A per-output ReLU
+// nonlinearity supports neural-network inference directly on-chip.
+//
+// Photonic inference pipeline:
+//   Laser → MZI mesh (weights loaded via DAC) → Photodetectors → ADC
+//   → THIS CORE (accumulate · saturate · ReLU) → inference result
+//
+// ─── Pin map ────────────────────────────────────────────────────────────────
+//  ui_in[3:0]   adc_in[3:0]  – photodetector ADC result  (unsigned, 0–15)
+//  ui_in[7:4]   weight[3:0]  – MZI phase coefficient     (signed 2's-comp, −8…+7)
+//  uio_in[1:0]  ch_sel[1:0]  – channel select            (0=A, 1=B, 2=C, 3=D)
+//  uio_in[2]    relu_en      – 1 = apply ReLU to uo_out
+//  uio_in[3]    ch_clear     – 1 = zero the selected channel this cycle
+//  uio_in[7:4]  (reserved, ignored)
+//  uo_out[7:0]  channel output   – selected accumulator, optionally ReLU-clipped
+//  uio_out[3:0] saturation flags – {sat_d, sat_c, sat_b, sat_a}
+//  uio_out[7:4] sign flags       – {neg_d, neg_c, neg_b, neg_a}
+
 module tt_um_lightrail_ai_core (
-    input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
-    input  wire [7:0] uio_in,   // IOs: Input path
-    output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 1=output, 0=input)
-    input  wire       ena,      // will go high when the design is enabled
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
+    input  wire [7:0] ui_in,
+    output wire [7:0] uo_out,
+    input  wire [7:0] uio_in,
+    output wire [7:0] uio_out,
+    output wire [7:0] uio_oe,
+    input  wire       ena,
+    input  wire       clk,
+    input  wire       rst_n
 );
 
-    // LightRail Gen3 - SIMD Dual-Lane Tensor MAC Core
-    // 1x1 Tiny Tapeout tile, Sky130 PDK
-    //
-    // Lane A: ui_in[7:4]=weight_a,  ui_in[3:0]=input_a  -> acc_a on uo_out
-    // Lane B: uio_in[7:4]=weight_b, uio_in[3:0]=input_b -> acc_b on uio_out
-    //
-    // Each clock (ena=1): acc_a += weight_a*input_a, acc_b += weight_b*input_b
-    // Dot product of 2N-element vectors in N cycles: dot = uo_out + uio_out
+    // ── Input decode ────────────────────────────────────────────────────────
+    wire [3:0] adc_in  = ui_in[3:0];   // photodetector ADC (unsigned)
+    wire [3:0] weight  = ui_in[7:4];   // MZI weight (signed 2's-complement)
+    wire [1:0] ch_sel  = uio_in[1:0];  // channel select
+    wire       relu_en = uio_in[2];    // ReLU enable
+    wire       ch_clr  = uio_in[3];    // per-channel clear
 
-    wire [3:0] weight_a = ui_in[7:4];
-    wire [3:0] input_a  = ui_in[3:0];
-    wire [3:0] weight_b = uio_in[7:4];
-    wire [3:0] input_b  = uio_in[3:0];
+    // ── Signed multiply: signed 4-bit weight × unsigned 4-bit ADC ──────────
+    // Sign-extend weight to 5 bits; zero-extend adc_in to 5 bits.
+    // Product range: −8×15 = −120 … +7×15 = +105  →  fits in 8-bit signed.
+    wire signed [9:0] prod_wide =
+        $signed({weight[3], weight}) * $signed({1'b0, adc_in});
+    wire signed [8:0] product = prod_wide[8:0];   // safe: range fits in 9-bit
 
-    // Zero-extend operands to 8 bits before multiply to guarantee
-    // full-precision 8-bit products (max 15*15=225 fits in 8 bits).
-    wire [7:0] product_a = {4'b0, weight_a} * {4'b0, input_a};
-    wire [7:0] product_b = {4'b0, weight_b} * {4'b0, input_b};
+    // ── Four 8-bit signed saturating accumulators (channels A–D) ───────────
+    reg signed [7:0] acc [0:3];
 
-    reg [7:0] acc_a;
-    reg [7:0] acc_b;
+    // Read current channel value and sign-extend for 9-bit sum
+    wire signed [7:0] cur = acc[ch_sel];
+    wire signed [8:0] sum = {cur[7], cur} + product;
+
+    // Saturate 9-bit signed → 8-bit signed
+    // Overflow detected when the two MSBs of the sum disagree:
+    //   sum[8:7] == 2'b01  →  positive overflow  →  clamp to +127 (8'h7F)
+    //   sum[8:7] == 2'b10  →  negative overflow  →  clamp to −128 (8'h80)
+    wire [7:0] sat = (sum[8:7] == 2'b01) ? 8'h7F :
+                     (sum[8:7] == 2'b10) ? 8'h80 :
+                     sum[7:0];
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            acc_a <= 8'h00;
-            acc_b <= 8'h00;
+            acc[0] <= 8'h00;
+            acc[1] <= 8'h00;
+            acc[2] <= 8'h00;
+            acc[3] <= 8'h00;
         end else if (ena) begin
-            acc_a <= acc_a + product_a;
-            acc_b <= acc_b + product_b;
+            acc[ch_sel] <= ch_clr ? 8'h00 : sat;
         end
     end
 
-    assign uo_out  = acc_a;
-    assign uio_out = acc_b;
-    assign uio_oe  = 8'hFF;
+    // ── Output: selected channel with optional ReLU ─────────────────────────
+    wire [7:0] raw = acc[ch_sel];
+    assign uo_out  = relu_en ? (raw[7] ? 8'h00 : raw) : raw;
+
+    // ── Status flags ────────────────────────────────────────────────────────
+    // Saturation: accumulator is at a clamped extreme
+    wire sat_a = (acc[0] == 8'h7F) | (acc[0] == 8'h80);
+    wire sat_b = (acc[1] == 8'h7F) | (acc[1] == 8'h80);
+    wire sat_c = (acc[2] == 8'h7F) | (acc[2] == 8'h80);
+    wire sat_d = (acc[3] == 8'h7F) | (acc[3] == 8'h80);
+
+    assign uio_out = {acc[3][7], acc[2][7], acc[1][7], acc[0][7],
+                      sat_d, sat_c, sat_b, sat_a};
+    assign uio_oe  = 8'hFF;   // all bidir pins driven as outputs in this design
 
 endmodule
