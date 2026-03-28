@@ -13,12 +13,12 @@ module tt_um_lightrail_ai_core (
 
     // =========================================================================
     // LightRail Gen3 - Phase 4: SIMD Dual-Lane Tensor MAC Core
-    // (Tiny Tapeout Prototype — 1x1 tile, Sky130 PDK)
+    // (Tiny Tapeout Prototype - 1x1 tile, Sky130 PDK)
     //
     // Architecture: 2-lane SIMD MAC array enabling neural network dot products.
     //
-    //   Lane A (ui_in):   weight_a[3:0] = ui_in[7:4],   input_a[3:0] = ui_in[3:0]
-    //   Lane B (uio_in):  weight_b[3:0] = uio_in[7:4],  input_b[3:0] = uio_in[3:0]
+    //   Lane A (ui_in):  weight_a[3:0] = ui_in[7:4], input_a[3:0] = ui_in[3:0]
+    //   Lane B (uio_in): weight_b[3:0] = uio_in[7:4], input_b[3:0] = uio_in[3:0]
     //
     //   Each clock cycle (when ena=1):
     //       acc_a <= acc_a + (weight_a * input_a)   // Lane A accumulates
@@ -27,19 +27,19 @@ module tt_um_lightrail_ai_core (
     //   uo_out  = acc_a  (Lane A 8-bit accumulator output)
     //   uio_out = acc_b  (Lane B 8-bit accumulator output)
     //
-    // Dot-Product computation for an N-element vector pair:
-    //   Feed ceil(N/2) dimension pairs per cycle (interleaved across lanes).
-    //   After ceil(N/2) cycles:  dot_product = uo_out + uio_out
+    // Dot-Product for an N-element vector pair [a0..aN] . [w0..wN]:
+    //   Feed ceil(N/2) dimension pairs per cycle, interleaved across lanes.
+    //   After ceil(N/2) cycles: dot_product = uo_out + uio_out
     //
-    // Example — 4-element dot product [a0,a1,a2,a3] · [w0,w1,w2,w3] = 20:
-    //   Cycle 1: Lane A = (w0=4, a0=1) → acc_a=4
-    //            Lane B = (w1=3, a1=2) → acc_b=6
-    //   Cycle 2: Lane A = (w2=2, a2=3) → acc_a=4+6=10
-    //            Lane B = (w3=1, a3=4) → acc_b=6+4=10
-    //   Result:  dot_product = acc_a + acc_b = 10 + 10 = 20  ✓
+    // Example - 4-element dot product [1,2,3,4] . [4,3,2,1] = 20:
+    //   Cycle 1: Lane A = (w0=4, a0=1) -> acc_a = 4
+    //            Lane B = (w1=3, a1=2) -> acc_b = 6
+    //   Cycle 2: Lane A = (w2=2, a2=3) -> acc_a = 4+6 = 10
+    //            Lane B = (w3=1, a3=4) -> acc_b = 6+4 = 10
+    //   Result:  dot_product = acc_a + acc_b = 10 + 10 = 20
     //
-    // Area estimate: 2× 4-bit multiplier + 2× 8-bit adder/reg ≈ ~200 sky130 cells
-    // Well within the ~1000-cell budget of a 1×1 Tiny Tapeout tile.
+    // Area estimate: 2x 4-bit multiplier + 2x 8-bit adder/reg ~= 200 sky130 cells
+    // Well within the ~1000-cell budget of a 1x1 Tiny Tapeout tile.
     // =========================================================================
 
     // --- Lane A: dedicated input pins ---
@@ -50,12 +50,15 @@ module tt_um_lightrail_ai_core (
     wire [3:0] weight_b = uio_in[7:4];
     wire [3:0] input_b  = uio_in[3:0];
 
-    // Parallel combinatorial 4x4 multipliers (8-bit products, no overflow)
-    wire [7:0] product_a = weight_a * input_a;
-    wire [7:0] product_b = weight_b * input_b;
+    // Parallel combinatorial 4x4 multipliers.
+    // Operands are explicitly zero-extended to 8 bits before the multiply so
+    // the full-precision 8-bit product is unambiguous across all simulators.
+    // (max product: 15*15 = 225, which fits exactly in 8 bits)
+    wire [7:0] product_a = {4'b0, weight_a} * {4'b0, input_a};
+    wire [7:0] product_b = {4'b0, weight_b} * {4'b0, input_b};
 
-    // 8-bit accumulation registers — one per SIMD lane
-    // Intentional wrapping on overflow (mod-256 arithmetic)
+    // 8-bit accumulation registers - one per SIMD lane.
+    // Overflow wraps modulo 256 (intentional).
     reg [7:0] acc_a;
     reg [7:0] acc_b;
 
@@ -64,17 +67,17 @@ module tt_um_lightrail_ai_core (
             acc_a <= 8'h00;   // Reset Lane A accumulator
             acc_b <= 8'h00;   // Reset Lane B accumulator
         end else if (ena) begin
-            acc_a <= acc_a + product_a;   // Lane A: accumulate MAC result
-            acc_b <= acc_b + product_b;   // Lane B: accumulate MAC result (SIMD)
+            acc_a <= acc_a + product_a;   // Lane A: MAC accumulate
+            acc_b <= acc_b + product_b;   // Lane B: MAC accumulate (SIMD parallel)
         end
-        // ena=0: both accumulators hold their current value (frozen)
+        // ena=0: accumulators hold current value (frozen)
     end
 
-    // Lane A accumulator → dedicated output pins
+    // Lane A accumulator -> dedicated output pins
     assign uo_out  = acc_a;
 
-    // Lane B accumulator → bidirectional pins (all driven as outputs)
+    // Lane B accumulator -> bidirectional pins (all driven as outputs)
     assign uio_out = acc_b;
-    assign uio_oe  = 8'hFF;   // All uio pins are outputs
+    assign uio_oe  = 8'hFF;   // All uio pins configured as outputs
 
 endmodule
