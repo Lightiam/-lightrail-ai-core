@@ -1,13 +1,9 @@
 # Tiny Tapeout project information
 project:
-  title:        "LightRail AI Gen3 – LR-P8A Photonic Inference Core"
+  title:        "LightRail AI Gen3 - LR-P8A Photonic Inference Core"
   author:       "LightRail Team"
   discord:      ""
-  description:  >
-    4-channel photonic AI inference post-processor. Signed MZI weights (−8 to +7)
-    multiply unsigned 4-bit photodetector ADC readings per channel (A–D), accumulate
-    into saturating 8-bit signed registers, and optionally apply ReLU activation.
-    Models the digital back-end of the LR-P8A PCIe photonic accelerator card.
+  description:  "4-channel photonic AI post-processor: signed MZI weight x unsigned ADC per channel (A-D), saturating 8-bit signed accumulators, per-output ReLU. Digital back-end for the LR-P8A PCIe photonic accelerator."
   language:     "Verilog"
   clock_hz:     50000000
 
@@ -40,8 +36,7 @@ pinout:
   uo[6]: "ch_out_6"
   uo[7]: "ch_out_7"
 
-  # Bidirectional pins (uio_oe=0xFF: all driven as outputs in this design;
-  # uio_in[3:0] are sampled as control inputs regardless of oe)
+  # Bidirectional pins
   uio[0]: "ch_sel_0"
   uio[1]: "ch_sel_1"
   uio[2]: "relu_en"
